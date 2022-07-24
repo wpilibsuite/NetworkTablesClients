@@ -10,50 +10,41 @@ namespace WPILib.NT3;
 
 internal class DataPipeline : IAsyncDisposable
 {
-    private readonly ChannelWriter<ReadEvent> m_readChannelWriter;
-    private readonly ChannelReader<WriteEvent> m_writeChannelReader;
-    private readonly Socket m_socket;
-    private readonly Pipe m_readPipe;
-    private readonly Pipe m_writePipe;
+    private readonly IDuplexChannel<WriteEvent, ReadEvent> m_dataChannel;
+    private readonly IDuplexPipe m_socketPipe;
 
-    private readonly Task m_socketToPipeTask;
     private readonly Task m_pipeToChannelTask;
     private readonly Task m_channelToPipeTask;
-    private readonly Task m_pipeToSocketTask;
 
 
-    public DataPipeline(ChannelWriter<ReadEvent> readChannelWriter, ChannelReader<WriteEvent> writeChannelReader, Socket socket)
+    public DataPipeline(IDuplexChannel<WriteEvent, ReadEvent> dataChannel, IDuplexPipe socketPipe)
     {
-        ArgumentNullException.ThrowIfNull(readChannelWriter);
-        ArgumentNullException.ThrowIfNull(writeChannelReader);
-        ArgumentNullException.ThrowIfNull(socket);
+        ArgumentNullException.ThrowIfNull(dataChannel);
+        ArgumentNullException.ThrowIfNull(socketPipe);
 
-        m_readChannelWriter = readChannelWriter;
-        m_writeChannelReader = writeChannelReader;
-        m_socket = socket;
+        m_dataChannel = dataChannel;
+        m_socketPipe = socketPipe;
 
-        m_readPipe = new Pipe(new PipeOptions(useSynchronizationContext: false));
-        m_writePipe = new Pipe(new PipeOptions(useSynchronizationContext: false));
         m_pipeToChannelTask = ReadPipeIntoChannel();
-        m_socketToPipeTask = ReadSocketIntoPipe();
-        m_pipeToSocketTask = WritePipeToSocket();
         m_channelToPipeTask = WriteChannelToPipe();
+    }
+
+    public async ValueTask CloseAsync()
+    {
+        await m_channelToPipeTask;
+        await m_pipeToChannelTask;
     }
 
     public async ValueTask DisposeAsync()
     {
-        await m_channelToPipeTask;
-        await m_pipeToSocketTask;
-        await m_socketToPipeTask;
-        await m_pipeToChannelTask;
-        m_socket.Close();
+        // TODO
     }
 
     private async Task WriteChannelToPipe()
     {
-        var writer = m_writePipe.Writer;
+        var writer = m_socketPipe.Output;
 
-        await foreach (var item in m_writeChannelReader.ReadAllAsync())
+        await foreach (var item in m_dataChannel.Input.ReadAllAsync())
         {
             int maxWriteLength = item.GetWriteLength();
             Memory<byte> memory = writer.GetMemory(maxWriteLength);
@@ -75,86 +66,12 @@ internal class DataPipeline : IAsyncDisposable
                 break;
             }
         }
-
         await writer.CompleteAsync().ConfigureAwait(false);
-    }
-
-    private async Task WritePipeToSocket()
-    {
-        var reader = m_writePipe.Reader;
-
-        while (true)
-        {
-            var readResult = await reader.ReadAsync();
-            var buffer = readResult.Buffer;
-
-            try
-            {
-                foreach (var buf in buffer) 
-                {
-                    int written = await m_socket.SendAsync(buf, SocketFlags.None);
-                    if (written != buf.Length)
-                    {
-                        buffer = buffer.Slice(written);
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // TODO log
-                break;
-            }
-
-            reader.AdvanceTo(buffer.Start, buffer.End);
-
-            if (readResult.IsCompleted)
-            {
-                break;
-            }
-        }
-
-        reader.Complete();
-        m_socket.Shutdown(SocketShutdown.Send);
-    }
-
-    private async Task ReadSocketIntoPipe()
-    {
-        var pipeWriter = m_readPipe.Writer;
-
-        while (true)
-        {
-            Memory<byte> memory = pipeWriter.GetMemory(512);
-            try
-            {
-                int bytesRead = await m_socket.ReceiveAsync(memory, SocketFlags.None);
-                if (bytesRead == 0)
-                {
-                    break;
-                }
-                pipeWriter.Advance(bytesRead);
-            }
-            catch (Exception ex)
-            {
-                // TODO log
-                break;
-            }
-
-            FlushResult result = await pipeWriter.FlushAsync();
-
-            if (result.IsCompleted)
-            {
-                break;
-            }
-        }
-
-        await pipeWriter.CompleteAsync().ConfigureAwait(false);
-        m_socket.Shutdown(SocketShutdown.Receive);
     }
 
     private async Task ReadPipeIntoChannel()
     {
-        var pipeReader = m_readPipe.Reader;
+        var pipeReader = m_socketPipe.Input;
         int minimumNeededBytes = 1;
         while (true)
         {
@@ -173,7 +90,7 @@ internal class DataPipeline : IAsyncDisposable
                     }
                     if (ntEvent != null)
                     {
-                        await m_readChannelWriter.WriteAsync(ntEvent.Value);
+                        await m_dataChannel.Output.WriteAsync(ntEvent.Value);
                     }
                 }
             }
@@ -191,8 +108,8 @@ internal class DataPipeline : IAsyncDisposable
             }
         }
         await pipeReader.CompleteAsync();
-        m_readChannelWriter.Complete();
-        
+        m_dataChannel.Output.Complete();
+
     }
 
     private byte[]? currentByteRead = null;
@@ -356,7 +273,7 @@ internal class DataPipeline : IAsyncDisposable
         return true;
     }
 
-    
+
 
     private bool TryParseEntryValue(ref SequenceReader<byte> reader, ref int minimumNecessaryBytes, EntryType type, out (double, object?) value)
     {
@@ -451,7 +368,7 @@ internal class DataPipeline : IAsyncDisposable
 
     private bool TryParseEntryUpdate(ref SequenceReader<byte> reader, ref int minimumNecessaryBytes, out ReadEvent? ntEvent)
     {
-        
+
         if (!TryRead(ref reader, ref minimumNecessaryBytes, out ushort entryId))
         {
             ntEvent = null;
