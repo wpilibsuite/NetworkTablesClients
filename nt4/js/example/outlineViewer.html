@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+
+<!-- 
+    outlineViewer.html - Simple example of using the JS network tables interface to produce
+    an Outline Viewer style display of all NT values.
+-->
+
+<head>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="outlineViewer.css">
+    <title>Outline Viewer</title>
+</head>
+
+<body>
+    <h1> Outline Viewer </h1>              
+    
+    <buttonsContainer class="outlined">
+        <buttonGroup class="outlined">
+            <div style="margin:5px; width:30vw" id="status">Not yet connected...</div>
+        </buttonGroup>
+        <buttonGroup class="outlined">
+            <div style="margin:5px; width:30vw" id="curTime"></div> 
+        </buttonGroup>
+
+    </buttonsContainer>
+
+    <table id="mainTable">
+    </table>
+
+    <hr>
+
+
+</body>
+
+<script type="module" src="outlineViewer.js"></script>
+
+</html>
