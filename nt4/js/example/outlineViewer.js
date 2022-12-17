@@ -44,12 +44,13 @@ function topicAnnounceHandler( newTopic ) {
     newRow.id = newTopic.id + "_row";
 
     //Populate the basic, unchanging data about the topic
-    newRow.insertCell(0).innerHTML = newTopic.id;
-    newRow.insertCell(1).innerHTML = newTopic.name;
-    newRow.insertCell(2).innerHTML = newTopic.type;
+    newRow.insertCell(0).innerHTML = newTopic.id.toString();
+    newRow.insertCell(1).innerHTML = newTopic.name.toString();
+    newRow.insertCell(2).innerHTML = newTopic.type.toString();
+    newRow.insertCell(3).innerHTML = newTopic.getPropertiesString();
 
     //Create and remember the cell which displays the topic's value
-    var valCell = newRow.insertCell(3);
+    var valCell = newRow.insertCell(4);
     valCell.innerHTML = "****";
     cellTopicIDMap.set(newTopic.id, valCell);
 
@@ -106,17 +107,17 @@ function onConnect() {
 
     newCell =titleRow.insertCell(0)
     newCell.innerHTML = "<b>ID</b>";
-    newCell.onclick = function() { sortTableNumeric(0); };
 
     newCell =titleRow.insertCell(1)
     newCell.innerHTML = "<b>Name</b>";
-    newCell.onclick = function() { sortTableAlphabetic(1); };
 
     newCell =titleRow.insertCell(2)
     newCell.innerHTML = "<b>Type</b>";
-    newCell.onclick = function() { sortTableAlphabetic(2); };
-
+    
     newCell =titleRow.insertCell(3)
+    newCell.innerHTML = "<b>Properties</b>";
+
+    newCell =titleRow.insertCell(4)
     newCell.innerHTML = "<b>Value</b>";
 
     // Then, subscribe to every topic.

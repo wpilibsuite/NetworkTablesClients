@@ -129,6 +129,15 @@ export class NT4_Topic {
     getTypeIdx() {
         return typestrIdxLookup[this.type];
     }
+
+    getPropertiesString(){
+        var retStr = "{"
+        for (var key in this.properties){
+            retStr += key + ":" + this.properties[key] + ", ";
+        }
+        retStr += "}";
+        return retStr;
+    }
 }
 
 export class NT4_Client {
