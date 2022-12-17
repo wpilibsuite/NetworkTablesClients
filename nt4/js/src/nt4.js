@@ -364,15 +364,21 @@ export class NT4_Client {
         this.ws_sendBinary(txData);
     }
 
+    /**
+     * Gets the server time. This is equal to the client current time, offset
+     * by the most recent results from running Cristian’s Algorithm with the server
+     * to synchronize timebases. 
+     * @returns The current time on the server, in microseconds
+     */
+    getServerTime_us() {
+        return this.getClientTime_us() + this.serverTimeOffset_us;
+    }
+
     //////////////////////////////////////////////////////////////
     // Server/Client Time Sync Handling
 
     getClientTime_us() {
         return Math.round(performance.now() * 1000.0);
-    }
-
-    getServerTime_us() {
-        return this.getClientTime_us() + this.serverTimeOffset_us;
     }
 
     ws_sendTimestamp() {
