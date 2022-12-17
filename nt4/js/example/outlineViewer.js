@@ -85,7 +85,7 @@ function valueUpdateHandler( topic, timestamp_us, value ) {
     }
 
     //update time
-    document.getElementById("curTime").innerHTML = "Time: ";
+    document.getElementById("curTime").innerHTML = "Server Time: ";
     document.getElementById("curTime").innerHTML += (timestamp_us / 1000000.0).toFixed(2);
 }
 
